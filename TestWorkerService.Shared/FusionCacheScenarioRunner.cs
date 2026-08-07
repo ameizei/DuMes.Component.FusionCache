@@ -226,7 +226,7 @@ public sealed class FusionCacheScenarioRunner
             key,
             new ProductDto(4, "short-ttl", DateTimeOffset.UtcNow),
             options => options.SetDuration(TimeSpan.FromMilliseconds(400)),
-            token: cancellationToken);
+            cancellationToken);
 
         var immediate = await cache.TryGetAsync<ProductDto>(key, token: cancellationToken);
         await Task.Delay(800, cancellationToken);
@@ -275,21 +275,14 @@ public sealed class FusionCacheScenarioRunner
         // CSRedis：Subscribe((channel, handler)...)
         redis.Subscribe((channel, msg => tcs.TrySetResult(msg.Body)));
 
-        try
-        {
-            await Task.Delay(300, cancellationToken);
-            var receivers = redis.Publish(channel, "hello-pubsub");
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(3000, cancellationToken));
-            if (completed != tcs.Task)
-                return (false, $"Subscribe 超时，Publish receivers={receivers}");
+        await Task.Delay(300, cancellationToken);
+        var receivers = redis.Publish(channel, "hello-pubsub");
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(3000, cancellationToken));
+        if (completed != tcs.Task)
+            return (false, $"Subscribe 超时，Publish receivers={receivers}");
 
-            var msg = await tcs.Task;
-            return (msg == "hello-pubsub", $"Message={msg}, receivers={receivers}");
-        }
-        finally
-        {
-            // 订阅随 CSRedisClient Dispose 释放
-        }
+        var msg = await tcs.Task;
+        return (msg == "hello-pubsub", $"Message={msg}, receivers={receivers}");
     }
 
     private async Task<(bool, string)> BackplaneInvalidateRemoteL1Async(CancellationToken cancellationToken)

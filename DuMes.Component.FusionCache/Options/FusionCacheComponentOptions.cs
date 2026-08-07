@@ -4,7 +4,7 @@ using StackExchange.Redis;
 namespace DuMes.Component.FusionCache.Options;
 
 /// <summary>
-///     FusionCache 组件配置项（配置节名 <see cref="SectionName"/>）。
+///     FusionCache 组件配置项（配置节名 <see cref="SectionName" />）。
 /// </summary>
 public sealed class FusionCacheComponentOptions
 {
@@ -12,8 +12,8 @@ public sealed class FusionCacheComponentOptions
     public const string SectionName = "FusionCache";
 
     /// <summary>
-    ///     Redis 部署模式。默认 <see cref="RedisMode.Standalone"/>。
-    ///     <see cref="RedisMode.Cluster"/> 时使用 <see cref="EndPoints"/>；单机时使用 <see cref="Host"/> + <see cref="Port"/>。
+    ///     Redis 部署模式。默认 <see cref="RedisMode.Standalone" />。
+    ///     <see cref="RedisMode.Cluster" /> 时使用 <see cref="EndPoints" />；单机时使用 <see cref="Host" /> + <see cref="Port" />。
     /// </summary>
     public RedisMode Mode { get; set; } = RedisMode.Standalone;
 
@@ -25,7 +25,7 @@ public sealed class FusionCacheComponentOptions
 
     /// <summary>
     ///     集群模式：节点列表，每项格式为 <c>host:port</c>（可只写部分种子节点，建议写全主节点）。
-    ///     <see cref="Mode"/> 为 <see cref="RedisMode.Cluster"/> 时必填。
+    ///     <see cref="Mode" /> 为 <see cref="RedisMode.Cluster" /> 时必填。
     /// </summary>
     public string[] EndPoints { get; set; } = [];
 
@@ -55,7 +55,7 @@ public sealed class FusionCacheComponentOptions
 
     /// <summary>
     ///     是否启用 FusionCache Backplane（StackExchange.Redis Pub/Sub），用于多实例间即时同步 L1 失效。
-    ///     仅在 <see cref="EnableDistributedCache"/> 为 <c>true</c> 时生效；关闭 Redis 时自动忽略。
+    ///     仅在 <see cref="EnableDistributedCache" /> 为 <c>true</c> 时生效；关闭 Redis 时自动忽略。
     ///     默认 <c>true</c>。
     /// </summary>
     public bool EnableBackplane { get; set; } = true;
@@ -76,12 +76,12 @@ public sealed class FusionCacheComponentOptions
 
     /// <summary>
     ///     Fail-Safe 最大持续时间（秒）。默认 <c>3600</c>，必须大于 0。
-    ///     建议大于 <see cref="DefaultL1DurationSeconds"/>，以便过期条目仍可作回退。
+    ///     建议大于 <see cref="DefaultL1DurationSeconds" />，以便过期条目仍可作回退。
     /// </summary>
     public int FailSafeMaxDurationSeconds { get; set; } = 3600;
 
-    /// <summary>校验配置并创建 <see cref="CSRedisClient"/>（单机或集群）。</summary>
-    public CSRedisClient CreateCSRedisClient()
+    /// <summary>校验配置并创建 <see cref="CSRedisClient" />（单机或集群）。</summary>
+    public CSRedisClient CreateCsRedisClient()
     {
         Validate();
 
@@ -136,10 +136,8 @@ public sealed class FusionCacheComponentOptions
                 throw new InvalidOperationException($"配置缺失：{SectionName}:{nameof(EndPoints)} 在集群模式下至少配置一个 host:port。");
 
             foreach (var ep in endpoints)
-            {
                 if (!TryParseEndPoint(ep, out _, out _))
                     throw new InvalidOperationException($"配置无效：{SectionName}:{nameof(EndPoints)} 项 \"{ep}\" 格式应为 host:port。");
-            }
 
             if (DefaultDatabase != 0)
                 throw new InvalidOperationException($"配置无效：{SectionName}:{nameof(DefaultDatabase)} 在集群模式下必须为 0。");
@@ -147,23 +145,31 @@ public sealed class FusionCacheComponentOptions
     }
 
     /// <summary>L1 默认过期时间。</summary>
-    public TimeSpan GetL1Duration() => TimeSpan.FromSeconds(DefaultL1DurationSeconds);
+    public TimeSpan GetL1Duration()
+    {
+        return TimeSpan.FromSeconds(DefaultL1DurationSeconds);
+    }
 
     /// <summary>
     ///     L2 默认过期时间。
-    ///     <see cref="DefaultL2DurationSeconds"/> 为 <c>0</c> 时返回 <see cref="TimeSpan.MaxValue"/>（永不过期）。
+    ///     <see cref="DefaultL2DurationSeconds" /> 为 <c>0</c> 时返回 <see cref="TimeSpan.MaxValue" />（永不过期）。
     /// </summary>
-    public TimeSpan GetL2Duration() =>
-        DefaultL2DurationSeconds == 0
+    public TimeSpan GetL2Duration()
+    {
+        return DefaultL2DurationSeconds == 0
             ? TimeSpan.MaxValue
             : TimeSpan.FromSeconds(DefaultL2DurationSeconds);
+    }
 
     /// <summary>Fail-Safe 最大持续时间。</summary>
-    public TimeSpan GetFailSafeMaxDuration() => TimeSpan.FromSeconds(FailSafeMaxDurationSeconds);
+    public TimeSpan GetFailSafeMaxDuration()
+    {
+        return TimeSpan.FromSeconds(FailSafeMaxDurationSeconds);
+    }
 
     /// <summary>
     ///     构建 StackExchange.Redis 连接配置（供 Backplane 使用）。
-    ///     单机与集群均通过 <see cref="ConfigurationOptions.EndPoints"/> 接入。
+    ///     单机与集群均通过 <see cref="ConfigurationOptions.EndPoints" /> 接入。
     /// </summary>
     public ConfigurationOptions BuildStackExchangeConfiguration()
     {
@@ -192,8 +198,10 @@ public sealed class FusionCacheComponentOptions
         return config;
     }
 
-    private string[] BuildClusterConnectionStrings() =>
-        ResolveEndPoints().Select(BuildNodeConnectionString).ToArray();
+    private string[] BuildClusterConnectionStrings()
+    {
+        return ResolveEndPoints().Select(BuildNodeConnectionString).ToArray();
+    }
 
     private string BuildNodeConnectionString(string hostPort)
     {
@@ -219,12 +227,14 @@ public sealed class FusionCacheComponentOptions
         return [$"{Host.Trim()}:{Port}"];
     }
 
-    private List<string> NormalizeEndPoints() =>
-        EndPoints
+    private List<string> NormalizeEndPoints()
+    {
+        return EndPoints
             .Where(static e => !string.IsNullOrWhiteSpace(e))
             .Select(static e => e.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
 
     private static bool TryParseEndPoint(string value, out string host, out int port)
     {

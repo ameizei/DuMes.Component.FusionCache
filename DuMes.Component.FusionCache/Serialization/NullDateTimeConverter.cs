@@ -1,10 +1,11 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DuMes.Component.FusionCache.Serialization;
 
 /// <summary>
-///     <see cref="DateTime?"/> 序列化：支持 JSON null、空字符串视为 null。
+///     <see cref="DateTime?" /> 序列化：支持 JSON null、空字符串视为 null。
 /// </summary>
 public sealed class NullDateTimeConverter : JsonConverter<DateTime?>
 {
@@ -23,12 +24,7 @@ public sealed class NullDateTimeConverter : JsonConverter<DateTime?>
             if (DateTime.TryParse(text, out var parsed))
                 return parsed;
 
-            if (DateTime.TryParseExact(
-                    text,
-                    DateTimeConverter.Format,
-                    null,
-                    System.Globalization.DateTimeStyles.None,
-                    out parsed))
+            if (DateTime.TryParseExact(text, DateTimeConverter.Format, null, DateTimeStyles.None, out parsed))
                 return parsed;
 
             throw new JsonException($"无法将 \"{text}\" 解析为 {nameof(DateTime)}。");

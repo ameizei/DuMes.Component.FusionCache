@@ -1,4 +1,3 @@
-using CSRedis;
 using DuMes.Component.FusionCache.Options;
 using DuMes.Component.FusionCache.Serialization;
 using Microsoft.Extensions.Caching.Distributed;
@@ -21,14 +20,11 @@ public static class FusionCacheServiceCollectionExtensions
     ///     从配置节 <c>FusionCache</c> 注册缓存组件。
     /// </summary>
     /// <param name="services">服务集合。</param>
-    /// <param name="configuration">配置根；读取 <see cref="FusionCacheComponentOptions.SectionName"/>。</param>
+    /// <param name="configuration">配置根；读取 <see cref="FusionCacheComponentOptions.SectionName" />。</param>
     /// <param name="configureOptions">可选，覆盖配置项。</param>
-    /// <param name="configureCache">可选，进一步配置 <see cref="IFusionCacheBuilder"/>。</param>
-    public static IServiceCollection AddComponentFusionCache(
-        this IServiceCollection services,
-        IConfiguration configuration,
-        Action<FusionCacheComponentOptions>? configureOptions = null,
-        Action<IFusionCacheBuilder>? configureCache = null)
+    /// <param name="configureCache">可选，进一步配置 <see cref="IFusionCacheBuilder" />。</param>
+    public static IServiceCollection AddComponentFusionCache(this IServiceCollection services, IConfiguration configuration,
+        Action<FusionCacheComponentOptions>? configureOptions = null, Action<IFusionCacheBuilder>? configureCache = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -46,10 +42,8 @@ public static class FusionCacheServiceCollectionExtensions
     /// <summary>
     ///     仅用代码配置注册（无 appsettings 配置节）。
     /// </summary>
-    public static IServiceCollection AddComponentFusionCache(
-        this IServiceCollection services,
-        Action<FusionCacheComponentOptions> configureOptions,
-        Action<IFusionCacheBuilder>? configureCache = null)
+    public static IServiceCollection AddComponentFusionCache(this IServiceCollection services,
+        Action<FusionCacheComponentOptions> configureOptions, Action<IFusionCacheBuilder>? configureCache = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configureOptions);
@@ -57,14 +51,11 @@ public static class FusionCacheServiceCollectionExtensions
         var options = new FusionCacheComponentOptions();
         configureOptions(options);
 
-        return Register(services, options, configureCache, configurationSection: null);
+        return Register(services, options, configureCache, null);
     }
 
-    private static IServiceCollection Register(
-        IServiceCollection services,
-        FusionCacheComponentOptions options,
-        Action<IFusionCacheBuilder>? configureCache,
-        IConfigurationSection? configurationSection)
+    private static IServiceCollection Register(IServiceCollection services, FusionCacheComponentOptions options,
+        Action<IFusionCacheBuilder>? configureCache, IConfigurationSection? configurationSection)
     {
         options.Validate();
 
@@ -78,7 +69,7 @@ public static class FusionCacheServiceCollectionExtensions
 
         if (useRedis)
         {
-            var redis = options.CreateCSRedisClient();
+            var redis = options.CreateCsRedisClient();
             RedisHelper.Initialization(redis);
 
             services.AddSingleton(redis);

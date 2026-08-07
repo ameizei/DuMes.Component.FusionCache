@@ -1,10 +1,11 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DuMes.Component.FusionCache.Serialization;
 
 /// <summary>
-///     <see cref="DateTime"/> 序列化：输出固定本地时间格式字符串。
+///     <see cref="DateTime" /> 序列化：输出固定本地时间格式字符串。
 /// </summary>
 public sealed class DateTimeConverter : JsonConverter<DateTime>
 {
@@ -15,7 +16,7 @@ public sealed class DateTimeConverter : JsonConverter<DateTime>
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
-            throw new JsonException($"无法将 null 反序列化为 DateTime，请使用 DateTime?。");
+            throw new JsonException("无法将 null 反序列化为 DateTime，请使用 DateTime?。");
 
         if (reader.TokenType == JsonTokenType.String)
         {
@@ -26,7 +27,7 @@ public sealed class DateTimeConverter : JsonConverter<DateTime>
             if (DateTime.TryParse(text, out var parsed))
                 return parsed;
 
-            if (DateTime.TryParseExact(text, Format, null, System.Globalization.DateTimeStyles.None, out parsed))
+            if (DateTime.TryParseExact(text, Format, null, DateTimeStyles.None, out parsed))
                 return parsed;
 
             throw new JsonException($"无法将 \"{text}\" 解析为 {nameof(DateTime)}。");

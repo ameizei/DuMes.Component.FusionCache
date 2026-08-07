@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DuMes.Component.FusionCache/DuMes.Component.FusionCache.csproj" />
+  <Project Path="TestWebApi/TestWebApi.csproj" />
+</Solution>

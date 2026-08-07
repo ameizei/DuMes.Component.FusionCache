@@ -1,5 +1,9 @@
 <Solution>
   <Project Path="DuMes.Component.FusionCache/DuMes.Component.FusionCache.csproj" />
+  <Project Path="TestConsole/TestConsole.csproj" />
+  <Project Path="TestConsole.Cluster/TestConsole.Cluster.csproj" />
   <Project Path="TestWebApi/TestWebApi.csproj" />
+  <Project Path="TestWorkerService.Cluster/TestWorkerService.Cluster.csproj" />
+  <Project Path="TestWorkerService.Shared/TestWorkerService.Shared.csproj" />
   <Project Path="TestWorkerService/TestWorkerService.csproj" />
 </Solution>

@@ -338,14 +338,16 @@ var json = redis.HGet("device:status", deviceId);
 
 ## 测试工程
 
-### Worker 场景（单机 / 集群）
+### Worker / Console 场景（单机 / 集群）
 
-共用场景在 `TestWorkerService.Shared`，两个 Worker 工程分别跑单机与集群（启动后执行完全部用例并退出，退出码 `0`=全过）。
+共用场景在 `TestWorkerService.Shared`。Worker 与 Console 各有单机、集群工程（跑完全部用例后退出，退出码 `0`=全过）。
 
-| 工程 | Redis | 默认连接 |
-|------|-------|----------|
-| `TestWorkerService` | 单机 | `127.0.0.1:6389` |
-| `TestWorkerService.Cluster` | Cluster（Docker 单节点集群） | `127.0.0.1:17001` |
+| 工程 | 类型 | Redis | 默认连接 |
+|------|------|-------|----------|
+| `TestWorkerService` | Worker | 单机 | `127.0.0.1:6389` |
+| `TestWorkerService.Cluster` | Worker | Cluster | `127.0.0.1:17001` |
+| `TestConsole` | Console | 单机 | `127.0.0.1:6389` |
+| `TestConsole.Cluster` | Console | Cluster | `127.0.0.1:17001` |
 
 ```bash
 # 1) 启动 Docker Redis
@@ -354,11 +356,13 @@ docker compose -f docker/redis-cluster/docker-compose.yml up -d
 # 集群由 init 自动分配槽位；可用：
 # docker exec dumes-redis-cluster redis-cli cluster info
 
-# 2) 跑单机场景
+# 2) Worker
 dotnet run --project TestWorkerService
-
-# 3) 跑集群场景
 dotnet run --project TestWorkerService.Cluster
+
+# 3) Console
+dotnet run --project TestConsole
+dotnet run --project TestConsole.Cluster
 ```
 
 覆盖场景：`Ping`、DI 注册、`GetOrSet` 命中、`TryGet`/`Set`、`Remove`、`SetDuration`、CSRedis Hash/队列/PubSub、双实例 Backplane 清 L1。

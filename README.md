@@ -47,6 +47,25 @@ builder.Services.AddComponentFusionCache(builder.Configuration);
 
 配置节名固定为 **`FusionCache`**（缺失则启动失败）。
 
+也可纯代码配置（不读配置节）：
+
+```csharp
+builder.Services.AddComponentFusionCache(o =>
+{
+    o.KeyPrefix = "DuMes:";
+    // ...
+});
+```
+
+### 注册后得到什么
+
+| `EnableDistributedCache` | 注册内容 |
+|--------------------------|----------|
+| `true` | `IFusionCache`、`CSRedisClient`、`RedisHelper`、`IDistributedCache`；可选 Backplane（`IConnectionMultiplexer`） |
+| `false` | 仅 `IFusionCache`（进程内 L1）；**不**连接 Redis，也**不**注册 `CSRedisClient` / `IDistributedCache` |
+
+`EnableBackplane` 仅在启用 Redis 时生效；关闭 Redis 时即使配置为 `true` 也会被忽略。
+
 ## 配置说明
 
 ### 配置项一览
@@ -54,19 +73,28 @@ builder.Services.AddComponentFusionCache(builder.Configuration);
 | 配置项 | 类型 | 默认值 | 必填 | 说明 |
 |--------|------|--------|------|------|
 | `Mode` | `Standalone` / `Cluster` | `Standalone` | 否 | Redis 部署模式 |
-| `Host` | string | `127.0.0.1` | 单机必填 | 单机主机；`Cluster` 模式忽略 |
+| `Host` | string | `127.0.0.1` | 单机有效 | 单机主机；`Cluster` 模式忽略 |
 | `Port` | int | `6379` | 单机有效 | 单机端口 `1~65535`；`Cluster` 模式忽略 |
-| `EndPoints` | string[] | `[]` | 集群必填 | 集群节点，格式 `host:port`（建议写全主节点） |
+| `EndPoints` | string[] | `[]` | 集群必填 | 集群节点，格式 `host:port` 或 `[IPv6]:port`（建议写全主节点） |
 | `Password` | string? | `null` | 否 | Redis 密码，可为空 |
 | `DefaultDatabase` | int | `0` | 否 | 库号；**集群必须为 `0`** |
-| `KeyPrefix` | string | — | 启用 Redis 时必填 | Key / Backplane 频道前缀，空则启动报错 |
+| `KeyPrefix` | string | — | 启用 Redis 时必填 | 经 CSRedis `prefix=` 自动加到所有 key；同时用作 Backplane 频道前缀；空则启动报错 |
 | `PoolSize` | int | `50` | 启用 Redis 时有效 | CSRedis 连接池大小，必须 `> 0` |
 | `EnableDistributedCache` | bool | `true` | 否 | 是否使用 Redis；`false` 时不连接 Redis，仅 L1 |
 | `EnableBackplane` | bool | `true` | 否 | 多实例即时清 L1；仅在启用 Redis 时生效 |
-| `DefaultL1DurationSeconds` | int | `300` | 否 | L1 过期秒数，必须 `> 0` |
-| `DefaultL2DurationSeconds` | int | `300` | 否 | L2 过期秒数；`0` = 永不过期；不能为负 |
+| `DefaultL1DurationSeconds` | int | `300` | 否 | L1 / 逻辑过期秒数，必须 `> 0` |
+| `DefaultL2DurationSeconds` | int | `300` | 否 | L2 过期秒数；`0` = 永不过期（`TimeSpan.MaxValue`）；不能为负 |
 | `IsFailSafeEnabled` | bool | `true` | 否 | 工厂失败时是否短暂复用过期条目 |
-| `FailSafeMaxDurationSeconds` | int | `3600` | 否 | Fail-Safe 最长保留秒数 |
+| `FailSafeMaxDurationSeconds` | int | `3600` | 否 | Fail-Safe 最长保留秒数，必须 `> 0`（建议大于 L1） |
+
+### 组件内置行为（不可配置项）
+
+| 行为 | 说明 |
+|------|------|
+| L2 熔断 | `DistributedCacheCircuitBreakerDuration = 30s`：L2 连续失败后短暂跳过 Redis，避免拖垮请求 |
+| Backplane 连接 | `AbortOnConnectFail=false`，`ConnectRetry=3`，`ConnectTimeout=5s`，`SyncTimeout=10s` |
+| 默认条目过期 | `Duration` = L1；启用 Redis 时另设 `DistributedCacheDuration` = L2（**不**再写死 `MemoryCacheDuration`，以便 `SetDuration` 能覆盖 L1） |
+| 配置校验 | 启动时 `Validate()`；关闭 Redis 时跳过连接相关校验，但仍校验 L1 / Fail-Safe 等 |
 
 ### 单机完整示例（含注释）
 
@@ -93,7 +121,7 @@ builder.Services.AddComponentFusionCache(builder.Configuration);
     // 默认数据库编号；单机任意 >=0，集群必须为 0
     "DefaultDatabase": 0,
 
-    // Key 前缀（启用 Redis 时必填）：隔离应用/环境；同时用作 Backplane 频道前缀
+    // Key 前缀（启用 Redis 时必填）：CSRedis 会自动加到所有 key；同时用作 Backplane 频道前缀
     "KeyPrefix": "DuMes:",
 
     // CSRedis 连接池大小，必须 > 0（仅启用 Redis 时有效）
@@ -107,16 +135,16 @@ builder.Services.AddComponentFusionCache(builder.Configuration);
     // true：某实例 Set/Remove/回源写入后，其它实例立刻清对应 L1
     "EnableBackplane": true,
 
-    // L1（内存）默认过期时间（秒），必须 > 0
+    // L1（内存）默认过期时间（秒），必须 > 0；业务侧 SetDuration 覆盖的也是这一层
     "DefaultL1DurationSeconds": 300,
 
-    // L2（Redis）默认过期时间（秒）；0 = 永不过期
+    // L2（Redis）默认过期时间（秒）；0 = 永不过期；与 L1 独立，SetDuration 不会改 L2
     "DefaultL2DurationSeconds": 300,
 
     // 是否启用 Fail-Safe（回源失败时短暂返回过期缓存）
     "IsFailSafeEnabled": true,
 
-    // Fail-Safe 最大保留时间（秒）
+    // Fail-Safe 最大保留时间（秒），必须 > 0；建议大于 DefaultL1DurationSeconds
     "FailSafeMaxDurationSeconds": 3600
   }
 }
@@ -130,7 +158,7 @@ builder.Services.AddComponentFusionCache(builder.Configuration);
     // 官方 Redis Cluster（分片）；同一集群内连不同节点，L2/Backplane 仍互通
     "Mode": "Cluster",
 
-    // 集群节点（必填，至少 1 个；建议写全主节点），格式 host:port
+    // 集群节点（必填，至少 1 个；建议写全主节点），格式 host:port 或 [IPv6]:port
     "EndPoints": [
       "192.168.1.10:6379",
       "192.168.1.11:6379",
@@ -158,6 +186,20 @@ builder.Services.AddComponentFusionCache(builder.Configuration);
     "DefaultL2DurationSeconds": 300,
     "IsFailSafeEnabled": true,
     "FailSafeMaxDurationSeconds": 3600
+  }
+}
+```
+
+### 仅 L1（不连 Redis）
+
+```jsonc
+{
+  "FusionCache": {
+    "EnableDistributedCache": false,
+    "DefaultL1DurationSeconds": 300,
+    "IsFailSafeEnabled": true,
+    "FailSafeMaxDurationSeconds": 3600
+    // 无需 KeyPrefix / Host / Password 等
   }
 }
 ```
@@ -210,8 +252,8 @@ L2 使用 `FusionCacheJsonOptions.JsonStringOptions`（进程内单例，首次�
 | `NumberHandling = AllowReadingFromString` | `"123"` 也可读成数字 |
 | `Encoder = UnsafeRelaxedJsonEscaping` | 中文等不转成 `\uXXXX` |
 | `JsonStringEnumConverter` | 枚举序列化为名称而非数字 |
-| `DateTimeConverter` | `DateTime` 格式 `yyyy-MM-dd HH:mm:ss` |
-| `NullDateTimeConverter` | `DateTime?` 支持 JSON `null` / 空串 |
+| `DateTimeConverter` | 写出 `yyyy-MM-dd HH:mm:ss`；读入支持该格式、常规解析、Unix 毫秒 |
+| `NullDateTimeConverter` | `DateTime?` 支持 JSON `null` / 空串；写出格式同上 |
 | 不使用 `WhenWritingNull` | null 字段仍会写出 |
 
 业务侧若需同一套规则，可直接引用 `FusionCacheJsonOptions.JsonStringOptions`。
@@ -224,18 +266,34 @@ var product = await cache.GetOrSetAsync(
     $"product:{id}",
     async _ => await db.GetProductAsync(id),
     options => options.SetDuration(TimeSpan.FromMinutes(5)));
+// SetDuration 只覆盖 L1 / 逻辑过期；L2 仍用 DefaultL2DurationSeconds
+// 若本次也要改 L2：
+// options => options
+//     .SetDuration(TimeSpan.FromMinutes(5))
+//     .SetDistributedCacheDuration(TimeSpan.FromHours(1));
 
 // 改配置后主动失效（开启 Backplane 时其它实例 L1 也会清）
 await cache.RemoveAsync($"product:{id}");
 
 // Hash / 队列 / 发布（注入 CSRedisClient，与缓存共用连接）
+// 实际 Redis key = KeyPrefix + "demo:product"（CSRedis prefix 自动拼接）
 redis.HSet("demo:product", "name", "widget");
 redis.LPush("demo:queue", "job-1");
 redis.Publish("demo:events", "hello");
 // 或 RedisHelper.HSet / LPush / Publish
 ```
 
-> 同一批业务 key 请统一走 `IFusionCache`，不要再直接改 L2，以免 L1/L2 不一致。Hash / 队列请使用独立 key 前缀。
+> 同一批业务 key 请统一走 `IFusionCache`，不要再直接改 L2，以免 L1/L2 不一致。Hash / 队列请使用独立 key 名（前缀已由 `KeyPrefix` 统一加上）。
+
+### 过期时间怎么生效
+
+| 配置 / API | 作用对象 |
+|------------|----------|
+| `DefaultL1DurationSeconds` | 默认 `Duration`（L1 / 逻辑过期） |
+| `DefaultL2DurationSeconds` | 默认 `DistributedCacheDuration`（仅启用 Redis 时） |
+| `options.SetDuration(...)` | 覆盖本次调用的 L1 / 逻辑过期；**不**改 L2 |
+| `options.SetDistributedCacheDuration(...)` | 覆盖本次调用的 L2 |
+| `FailSafeMaxDurationSeconds` | 启用 Fail-Safe 时，过期条目在内存中可保留的上限 |
 
 ## 适用场景
 
@@ -243,7 +301,7 @@ redis.Publish("demo:events", "hello");
 
 读多写少、回源贵、可能多实例共享的数据，例如：配置、字典、组织树、权限、物料/工艺主数据。
 
-典型用法是读侧 `GetOrSet`：未命中时由**当前读请求**去 DB/远程拉取并回填 L1（+ 可选 L2）。多实例请开启 `EnableBackplane`，否则其它节点 L1 最多等到 `DefaultL1DurationSeconds` 才刷新。
+典型用法是读侧 `GetOrSet`：未命中时由**当前读请求**去 DB/远程拉取并回填 L1（+ 可选 L2）。多实例请开启 `EnableBackplane`，否则其它节点 L1 最多等到 `DefaultL1DurationSeconds`（或该次 `SetDuration`）才刷新。
 
 ### 何时用 `CSRedisClient`（不要硬套 FusionCache）
 

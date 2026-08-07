@@ -40,7 +40,7 @@ public sealed class FusionCacheComponentOptions
 
     /// <summary>
     ///     Key 前缀，用于隔离不同应用/环境的缓存与业务 Redis 数据。
-    ///     配置必填，未配置或为空时启动报错。
+    ///     启用 Redis 时必填（经 CSRedis <c>prefix=</c> 自动加到所有 key）；同时用作 Backplane 频道前缀。
     /// </summary>
     public string KeyPrefix { get; set; } = string.Empty;
 
@@ -74,7 +74,10 @@ public sealed class FusionCacheComponentOptions
     /// <summary>是否启用 Fail-Safe（工厂失败时短暂复用过期条目）。默认 <c>true</c>。</summary>
     public bool IsFailSafeEnabled { get; set; } = true;
 
-    /// <summary>Fail-Safe 最大持续时间（秒）。默认 <c>3600</c>。</summary>
+    /// <summary>
+    ///     Fail-Safe 最大持续时间（秒）。默认 <c>3600</c>，必须大于 0。
+    ///     建议大于 <see cref="DefaultL1DurationSeconds"/>，以便过期条目仍可作回退。
+    /// </summary>
     public int FailSafeMaxDurationSeconds { get; set; } = 3600;
 
     /// <summary>校验配置并创建 <see cref="CSRedisClient"/>（单机或集群）。</summary>
@@ -101,6 +104,9 @@ public sealed class FusionCacheComponentOptions
 
         if (DefaultL2DurationSeconds < 0)
             throw new InvalidOperationException($"配置无效：{SectionName}:{nameof(DefaultL2DurationSeconds)} 不能为负数（0 表示 L2 永不过期）。");
+
+        if (FailSafeMaxDurationSeconds <= 0)
+            throw new InvalidOperationException($"配置无效：{SectionName}:{nameof(FailSafeMaxDurationSeconds)} 必须大于 0。");
 
         // 关闭 Redis 时仅校验内存缓存相关项，不校验连接信息
         if (!EnableDistributedCache)

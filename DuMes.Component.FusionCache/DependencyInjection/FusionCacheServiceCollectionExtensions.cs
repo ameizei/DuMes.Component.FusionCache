@@ -104,8 +104,9 @@ public static class FusionCacheServiceCollectionExtensions
             })
             .WithDefaultEntryOptions(entry =>
             {
+                // Duration：L1 / 逻辑过期；不设 MemoryCacheDuration，便于业务侧 SetDuration 覆盖 L1
                 entry.Duration = l1;
-                entry.MemoryCacheDuration = l1;
+                // L2 独立 TTL；未设置时才回退到 Duration
                 if (useRedis)
                     entry.DistributedCacheDuration = l2;
                 entry.IsFailSafeEnabled = options.IsFailSafeEnabled;

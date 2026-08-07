@@ -1,0 +1,67 @@
+# 单节点 Redis Cluster（验证组件 Mode=Cluster；避开 macOS 占用 7000）
+# 启动：docker compose -f docker/redis-cluster/docker-compose.yml up -d
+# 连接：127.0.0.1:17001
+
+services:
+  redis-cluster:
+    image: redis:7-alpine
+    container_name: dumes-redis-cluster
+    ports:
+      - "17001:6379"
+      - "17011:16379"
+    command:
+      - redis-server
+      - --port
+      - "6379"
+      - --cluster-enabled
+      - "yes"
+      - --cluster-config-file
+      - nodes.conf
+      - --cluster-node-timeout
+      - "5000"
+      - --cluster-announce-ip
+      - "127.0.0.1"
+      - --cluster-announce-port
+      - "17001"
+      - --cluster-announce-bus-port
+      - "17011"
+      - --appendonly
+      - "yes"
+      - --protected-mode
+      - "no"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli cluster info | grep -q 'cluster_state:ok'"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  redis-cluster-init:
+    image: redis:7-alpine
+    container_name: dumes-redis-cluster-init
+    depends_on:
+      - redis-cluster
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "waiting..."
+        for i in $$(seq 1 40); do
+          if redis-cli -h redis-cluster ping 2>/dev/null | grep -q PONG; then
+            break
+          fi
+          sleep 1
+        done
+        if redis-cli -h redis-cluster cluster info 2>/dev/null | grep -q 'cluster_state:ok'; then
+          echo "cluster already ok"
+          redis-cli -h redis-cluster cluster info
+          exit 0
+        fi
+        echo "assigning all slots to single master..."
+        # 单节点集群：把 0~16383 全部指给本节点（足够验证 CSRedis/FusionCache Cluster 模式）
+        seq 0 16383 | xargs redis-cli -h redis-cluster cluster addslots
+        sleep 2
+        redis-cli -h redis-cluster cluster info
+        redis-cli -h redis-cluster cluster nodes
+        redis-cli -h redis-cluster cluster info | grep -q 'cluster_state:ok'

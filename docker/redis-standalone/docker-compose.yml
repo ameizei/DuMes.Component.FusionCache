@@ -1,0 +1,16 @@
+# 单机 Redis（供 TestWorkerService 使用）
+# 启动：docker compose -f docker/redis-standalone/docker-compose.yml up -d
+# 端口：6389（避免与本机已有 6379 冲突）
+
+services:
+  redis-standalone:
+    image: redis:7-alpine
+    container_name: dumes-redis-standalone
+    ports:
+      - "6389:6379"
+    command: ["redis-server", "--appendonly", "yes", "--protected-mode", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

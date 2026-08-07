@@ -30,7 +30,7 @@ public sealed class FusionCacheComponentOptions
     public string[] EndPoints { get; set; } = [];
 
     /// <summary>Redis 密码。可为空。</summary>
-    public string? Password { get; set; }
+    public string Password { get; set; }
 
     /// <summary>
     ///     默认数据库编号。默认 <c>0</c>。

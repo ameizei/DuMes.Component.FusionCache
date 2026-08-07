@@ -24,7 +24,7 @@ public static class FusionCacheServiceCollectionExtensions
     /// <param name="configureOptions">可选，覆盖配置项。</param>
     /// <param name="configureCache">可选，进一步配置 <see cref="IFusionCacheBuilder" />。</param>
     public static IServiceCollection AddComponentFusionCache(this IServiceCollection services, IConfiguration configuration,
-        Action<FusionCacheComponentOptions>? configureOptions = null, Action<IFusionCacheBuilder>? configureCache = null)
+        Action<FusionCacheComponentOptions> configureOptions = null, Action<IFusionCacheBuilder> configureCache = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -43,7 +43,7 @@ public static class FusionCacheServiceCollectionExtensions
     ///     仅用代码配置注册（无 appsettings 配置节）。
     /// </summary>
     public static IServiceCollection AddComponentFusionCache(this IServiceCollection services,
-        Action<FusionCacheComponentOptions> configureOptions, Action<IFusionCacheBuilder>? configureCache = null)
+        Action<FusionCacheComponentOptions> configureOptions, Action<IFusionCacheBuilder> configureCache = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configureOptions);
@@ -55,7 +55,7 @@ public static class FusionCacheServiceCollectionExtensions
     }
 
     private static IServiceCollection Register(IServiceCollection services, FusionCacheComponentOptions options,
-        Action<IFusionCacheBuilder>? configureCache, IConfigurationSection? configurationSection)
+        Action<IFusionCacheBuilder> configureCache, IConfigurationSection configurationSection)
     {
         options.Validate();
 
@@ -76,7 +76,7 @@ public static class FusionCacheServiceCollectionExtensions
             services.AddSingleton<IDistributedCache>(new CSRedisCache(redis));
         }
 
-        IConnectionMultiplexer? backplaneMuxer = null;
+        IConnectionMultiplexer backplaneMuxer = null;
         if (useBackplane)
         {
             backplaneMuxer = ConnectionMultiplexer.Connect(options.BuildStackExchangeConfiguration());
@@ -110,7 +110,7 @@ public static class FusionCacheServiceCollectionExtensions
             builder.WithRegisteredDistributedCache();
         }
 
-        if (useBackplane && backplaneMuxer is not null)
+        if (useBackplane)
         {
             var muxer = backplaneMuxer;
             builder.WithBackplane(new RedisBackplane(new RedisBackplaneOptions
